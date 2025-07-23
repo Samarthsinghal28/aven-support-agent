@@ -15,7 +15,7 @@ AVEN_SUPPORT_URL = os.getenv('AVEN_SUPPORT_URL', 'https://www.aven.com/support')
 PINECONE_API_KEY = os.getenv('PINECONE_API_KEY')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 INDEX_NAME = os.getenv('PINECONE_INDEX_NAME', 'aven-support-index')
-EMBEDDING_MODEL = os.getenv('EMBEDDING_MODEL', 'text-embedding-ada-002')
+EMBEDDING_MODEL = os.getenv('EMBEDDING_MODEL', 'text-embedding-3-small')  # Faster OpenAI model
 CHUNK_SIZE = int(os.getenv('CHUNK_SIZE', 500))
 
 # Check for required API keys

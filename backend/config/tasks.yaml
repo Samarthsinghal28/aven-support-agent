@@ -1,0 +1,55 @@
+tasks:
+  routing_task:
+    description: >
+      Analyze this user query: "{query}"
+      
+      Based on the query, decide if it can be answered using our internal Aven knowledge base 
+      or if it requires current/external information that might need a web search.
+      
+      Guidelines:
+      - Most Aven-specific questions (products, policies, how-to) should use KNOWLEDGE_BASE
+      - Only use WEB_SEARCH for very recent news, regulatory changes, or if explicitly about current events
+      - Default to KNOWLEDGE_BASE unless there's a clear need for current external information
+    expected_output: "A single word: either 'KNOWLEDGE_BASE' or 'WEB_SEARCH'"
+    agent: 'router_agent'
+
+  retrieval_task:
+    description: >
+      Search the Aven knowledge base for information about: "{query}"
+      
+      Use the knowledge_base_search tool to find relevant information from our internal documentation.
+      Be thorough in your search and provide all relevant information found.
+    expected_output: "Comprehensive information from the knowledge base, or a clear message if no relevant information is found"
+    agent: 'retrieval_agent'
+    context:
+      - 'routing_task'
+
+  search_task:
+    description: >
+      Search for information about: "{query}"
+      
+      Only perform this search if the knowledge base doesn't have sufficient information.
+      Use the web_search tool once to find current, relevant information.
+      If the search fails due to API issues, acknowledge this and provide a helpful message.
+    expected_output: "Relevant information from web search, or an error message explaining any issues encountered"
+    agent: 'search_agent'
+    context:
+      - 'routing_task'
+
+  response_task:
+    description: >
+      Create a helpful response to: "{query}"
+      
+      Use the information gathered from previous tasks. Prioritize information from the knowledge base over web search.
+      
+      Guidelines:
+      - Be friendly and professional
+      - Provide accurate information based on available sources
+      - If information is limited, acknowledge this
+      - Include contact information for further assistance
+      - If web search failed, rely on knowledge base information
+    expected_output: "A comprehensive, friendly response to the user's question"
+    agent: 'response_agent'
+    context:
+      - 'retrieval_task'
+      - 'search_task' 

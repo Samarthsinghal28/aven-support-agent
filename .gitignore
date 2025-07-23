@@ -1,7 +1,7 @@
-# Virtual environment
-venv/
-env/
-ENV/
+# Backend (Python) specific
+backend/venv/
+backend/env/
+backend/ENV/
 
 # Python
 __pycache__/
@@ -24,6 +24,18 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+
+# Frontend (Node.js/Next.js) specific
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/dist/
+
+# Dependencies
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
 
 # Environment variables
 .env

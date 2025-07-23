@@ -10,35 +10,41 @@ A scalable AI Customer Support Agent built with Python 3.10 and CrewAI, designed
 - **Voice & Text Support**: Integrated with Vapi for seamless voice/text interactions
 - **Guardrails**: Built-in safety checks for sensitive content
 - **Multi-LLM Support**: Works with OpenAI GPT or Google Gemini models
+- **Modern Frontend**: Next.js web interface with TypeScript and Tailwind CSS
 
 ## Setup
 
 ### Prerequisites
 - Python 3.10+ (required for CrewAI)
+- Node.js 18+ (for frontend)
 - API Keys for: OpenAI/Gemini, Pinecone, SerpAPI, Vapi
 
 ### Installation
 
 1. Clone the repository and navigate to the project directory
-2. Create and activate a virtual environment:
+
+2. **Backend Setup**:
    ```bash
+   cd backend
    python3.10 -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-3. Install dependencies:
-   ```bash
    pip install -r requirements.txt
-   ```
-4. Set up environment variables:
-   ```bash
    cp env.example .env
    # Edit .env with your API keys
+   ```
+
+3. **Frontend Setup**:
+   ```bash
+   cd frontend
+   npm install
    ```
 
 ### Quick Start
 
 1. **Data Ingestion**: Scrape and index Aven's support content
    ```bash
+   cd backend
+   source venv/bin/activate
    python ingest.py
    ```
 
@@ -52,18 +58,30 @@ A scalable AI Customer Support Agent built with Python 3.10 and CrewAI, designed
    python agent.py
    ```
 
+4. **Run Frontend**: Start the Next.js development server
+   ```bash
+   cd frontend
+   npm run dev
+   ```
+
 ## Project Structure
 
 ```
 vapi-support-bot/
-├── venv/                 # Virtual environment (Python 3.10)
-├── requirements.txt      # Python dependencies with CrewAI
-├── .gitignore           # Git ignore rules
-├── env.example          # Environment variables template
-├── README.md            # This file
-├── ingest.py           # Data ingestion pipeline
-├── rag_query.py        # RAG testing script
-└── agent.py            # Multi-agent CrewAI system
+├── backend/              # Python backend with CrewAI
+│   ├── venv/            # Virtual environment (Python 3.10)
+│   ├── requirements.txt # Python dependencies with CrewAI
+│   ├── env.example      # Environment variables template
+│   ├── ingest.py        # Data ingestion pipeline
+│   ├── rag_query.py     # RAG testing script
+│   └── agent.py         # Multi-agent CrewAI system
+├── frontend/            # Next.js frontend application
+│   ├── src/            # Source code with TypeScript
+│   ├── public/         # Static assets
+│   ├── package.json    # Node.js dependencies
+│   └── ...             # Next.js configuration files
+├── .gitignore          # Git ignore rules
+└── README.md           # This file
 ```
 
 ## Development Status
