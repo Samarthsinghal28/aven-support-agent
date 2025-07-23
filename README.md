@@ -67,7 +67,7 @@ A scalable AI Customer Support Agent built with Python 3.10 and CrewAI, designed
 ## Project Structure
 
 ```
-vapi-support-bot/
+aven-support-bot/
 ├── backend/              # Python backend with CrewAI
 │   ├── venv/            # Virtual environment (Python 3.10)
 │   ├── requirements.txt # Python dependencies with CrewAI
