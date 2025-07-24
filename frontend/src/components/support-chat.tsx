@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar } from "@/components/ui/avatar"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { Send, Bot, AlertTriangle } from "lucide-react"
 import VapiVoiceCall from "./vapi-voice-call"
 import { useVapiService } from "@/hooks/useVapiService"
@@ -111,16 +111,16 @@ export default function SupportChat() {
   }
 
   return (
-    <Card className="w-full max-w-4xl mx-auto h-[600px] flex flex-col border-0 shadow-lg">
-      <CardHeader className="border-b border-gray-100 pb-4">
+    <Card className="w-full max-w-4xl mx-auto h-[700px] flex flex-col border-0 shadow-lg">
+      <CardHeader className="border-b border-gray-100 pb-3 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <Avatar className="h-10 w-10 bg-blue-100">
-              <Bot className="h-6 w-6 text-blue-600" />
+            <Avatar className="h-8 w-8 bg-blue-100">
+              <Bot className="h-5 w-5 text-blue-600" />
             </Avatar>
             <div>
-              <h3 className="font-semibold text-lg">Aven Support AI</h3>
-              <p className="text-sm text-gray-500">
+              <h3 className="font-semibold text-base">Aven Support AI</h3>
+              <p className="text-xs text-gray-500">
                 {sessionId ? `Session: ${sessionId.slice(-8)}` : "Initializing..."}
               </p>
               {isVapiAvailable && (
@@ -131,29 +131,29 @@ export default function SupportChat() {
         </div>
       </CardHeader>
 
-      <CardContent className="flex-1 p-0">
+      <CardContent className="flex-1 p-0 overflow-hidden">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-          <TabsList className="grid w-full grid-cols-2 mx-4 mt-4">
+          <TabsList className="grid w-full grid-cols-2 mx-4 mt-3 flex-shrink-0">
             <TabsTrigger value="chat" className="text-sm">💬 Text Chat</TabsTrigger>
             <TabsTrigger value="voice" className="text-sm">🎙️ Voice Chat</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="chat" className="flex-1 flex flex-col mt-4 px-4">
-            <ScrollArea className="flex-1 mb-4">
-              <div className="space-y-4">
+          <TabsContent value="chat" className="flex-1 flex flex-col mt-3 px-4 overflow-hidden">
+            <ScrollArea className="flex-1 h-full border rounded-md">
+              <div className="space-y-3 p-3">
                 {messages.map((message) => (
                   <div
                     key={message.id}
                     className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}
                   >
                     <div
-                      className={`max-w-[80%] rounded-lg px-4 py-2 ${
+                      className={`max-w-[85%] rounded-lg px-3 py-2 ${
                         message.sender === "user"
                           ? "bg-blue-600 text-white"
                           : "bg-gray-100 text-gray-900"
                       }`}
                     >
-                      <p className="text-sm">{message.content}</p>
+                      <p className="text-sm leading-relaxed">{message.content}</p>
                       <div className="flex items-center justify-between mt-1">
                         <p className="text-xs opacity-70">
                           {message.timestamp.toLocaleTimeString('en-US', { hour12: false })}
@@ -169,9 +169,9 @@ export default function SupportChat() {
                 ))}
                 {isChatLoading && (
                   <div className="flex justify-start">
-                    <div className="bg-gray-100 rounded-lg px-4 py-2">
+                    <div className="bg-gray-100 rounded-lg px-3 py-2">
                       <div className="flex items-center space-x-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
                         <p className="text-sm text-gray-600">Agent is thinking...</p>
                       </div>
                     </div>
@@ -179,24 +179,25 @@ export default function SupportChat() {
                 )}
               </div>
               <div ref={messagesEndRef} />
+              <ScrollBar className="w-2 bg-gray-200" />
             </ScrollArea>
           </TabsContent>
 
-          <TabsContent value="voice" className="flex-1 flex flex-col mt-4 px-4">
+          <TabsContent value="voice" className="flex-1 flex flex-col mt-3 px-4 overflow-hidden">
             <div className="flex-1 flex flex-col items-center justify-center">
               {isVapiLoading && (
-                <div className="text-center p-8">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                  <h3 className="text-xl font-medium mb-2">Connecting Voice Service...</h3>
-                  <p className="text-gray-500">Please wait a moment.</p>
+                <div className="text-center p-6">
+                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-3"></div>
+                  <h3 className="text-lg font-medium mb-2">Connecting Voice Service...</h3>
+                  <p className="text-gray-500 text-sm">Please wait a moment.</p>
                 </div>
               )}
               {vapiError && (
-                 <div className="text-center p-8 bg-red-50 rounded-lg">
-                  <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-                  <h3 className="text-xl font-medium mb-2 text-red-800">Voice Service Error</h3>
-                  <p className="text-red-600">{vapiError}</p>
-                  <p className="text-sm text-gray-500 mt-2">Please check the backend connection and refresh.</p>
+                 <div className="text-center p-6 bg-red-50 rounded-lg">
+                  <AlertTriangle className="h-10 w-10 text-red-500 mx-auto mb-3" />
+                  <h3 className="text-lg font-medium mb-2 text-red-800">Voice Service Error</h3>
+                  <p className="text-red-600 text-sm">{vapiError}</p>
+                  <p className="text-xs text-gray-500 mt-2">Please check the backend connection and refresh.</p>
                 </div>
               )}
               {!isVapiLoading && !vapiError && assistantId && (
@@ -207,24 +208,27 @@ export default function SupportChat() {
         </Tabs>
       </CardContent>
 
-      <CardFooter className="border-t border-gray-100 pt-4">
-        <form onSubmit={handleSubmit} className="flex w-full space-x-2">
-          <Input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Type your message..."
-            disabled={isChatLoading}
-            className="flex-1"
-          />
-          <Button type="submit" disabled={!input.trim() || isChatLoading} className="px-6">
-            {isChatLoading ? (
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-          </Button>
-        </form>
-      </CardFooter>
+      {/* Only show the input form when on text chat tab */}
+      {activeTab === "chat" && (
+        <CardFooter className="border-t border-gray-100 pt-3 flex-shrink-0">
+          <form onSubmit={handleSubmit} className="flex w-full space-x-2">
+            <Input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Type your message..."
+              disabled={isChatLoading}
+              className="flex-1"
+            />
+            <Button type="submit" disabled={!input.trim() || isChatLoading} className="px-6">
+              {isChatLoading ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+            </Button>
+          </form>
+        </CardFooter>
+      )}
     </Card>
   )
 }

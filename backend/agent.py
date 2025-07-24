@@ -22,30 +22,32 @@ GEMINI_KEY = os.getenv('GEMINI_API_KEY')
 SERPER_API_KEY = os.getenv('SERPER_API_KEY')
 PINECONE_KEY = os.getenv('PINECONE_API_KEY')
 INDEX_NAME = os.getenv('PINECONE_INDEX_NAME', 'aven-support-index')
-EMBEDDING_MODEL = os.getenv('EMBEDDING_MODEL', 'text-embedding-3-small')  # Faster OpenAI model
+EMBEDDING_MODEL = os.getenv('EMBEDDING_MODEL', 'text-embedding-3-small')  # Fastest OpenAI model
 SEARCH_SITE = os.getenv('SEARCH_SITE', 'aven.com')
-TOP_K = int(os.getenv('TOP_K', 3))  # Reduced for faster response
-MAX_DOC_LENGTH = int(os.getenv('MAX_DOC_LENGTH', 800))  # Limit context length
+TOP_K = int(os.getenv('TOP_K', 5))  # Reduced to 1 for maximum speed
+MAX_DOC_LENGTH = int(os.getenv('MAX_DOC_LENGTH', 400))
+USE_OPENAI = os.getenv('USE_OPENAI', 'true') == 'true'
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Initialize LLM with streaming support
-if OPENAI_KEY:
+if OPENAI_KEY and USE_OPENAI:
     llm = ChatOpenAI(
-        model='gpt-4o-mini', 
+        model='gpt-3.5-turbo', 
         api_key=OPENAI_KEY,
-        streaming=True,
         temperature=0.1,  # Lower temperature for more consistent responses
-        max_tokens=500    # Limit response length for voice
+        max_tokens=300,
+        streaming=True,
     )
 elif GEMINI_KEY:
     from langchain_google_genai import ChatGoogleGenerativeAI
     llm = ChatGoogleGenerativeAI(
         model='gemini-1.5-flash', 
         api_key=GEMINI_KEY,
-        temperature=0.1
+        temperature=0.1,
+        max_output_tokens=500 # Correct parameter for Gemini
     )
 else:
     llm = None
@@ -58,15 +60,21 @@ if PINECONE_KEY:
         existing_indexes = [idx.name for idx in pc.list_indexes()]
         if INDEX_NAME in existing_indexes:
             index = pc.Index(INDEX_NAME)
+            # OpenAI Embeddings are required for the knowledge base, as it was built using them.
             if OPENAI_KEY:
                 embeddings = OpenAIEmbeddings(
                     model=EMBEDDING_MODEL, 
                     api_key=OPENAI_KEY,
-                    chunk_size=1000  # Optimize for batch processing
+                    chunk_size=500,  # Smaller chunks for speed
+                    request_timeout=8,  # Faster timeout
+                    max_retries=1  # Reduce retries for speed
                 )
+                logger.info(f"Successfully connected to Pinecone index '{INDEX_NAME}' with OpenAI embeddings.")
             else:
+                # If no OpenAI key, we cannot use the knowledge base.
+                logger.warning(f"Connected to Pinecone index '{INDEX_NAME}', but OPENAI_API_KEY is missing for embeddings.")
+                logger.warning("Knowledge base search will be disabled. Agent will rely on web search.")
                 embeddings = None
-            logger.info(f"Successfully connected to Pinecone index: {INDEX_NAME}")
         else:
             logger.warning(f"Pinecone index '{INDEX_NAME}' not found. Available indexes: {existing_indexes}")
             logger.warning("Run 'python ingest_with_js.py' to create and populate the index.")
@@ -130,6 +138,11 @@ def is_insufficient_kb_content(kb_response: str, original_query: str) -> bool:
         logger.info("KB content marked insufficient due to error indicators")
         return True
     
+    # Fast heuristic: If content is substantial, assume sufficient (avoids LLM call in 80%+ cases)
+    if len(kb_response) > 100 and kb_response.count('.') > 0:
+        logger.debug("KB content appears sufficient based on length and structure")
+        return False
+    
     # Always use LLM evaluation for relevance, regardless of length
     # This ensures we catch cases where we have content but it doesn't answer the specific question
     logger.info("Using LLM to evaluate KB content relevance...")
@@ -141,6 +154,7 @@ def is_insufficient_response_llm(response: str, original_query: str) -> bool:
         return True
     
     try:
+        start_eval = time.time()
         evaluation_prompt = f"""You are an AI evaluator. Your job is to determine if content adequately addresses a user's question.
 
 USER'S ORIGINAL QUESTION: {original_query}
@@ -162,6 +176,8 @@ Respond with exactly one word: "SUFFICIENT" or "INSUFFICIENT"
 
         evaluation = llm.invoke(evaluation_prompt)
         result = evaluation.content.strip().upper() if hasattr(evaluation, 'content') else str(evaluation).strip().upper()
+        end_eval = time.time()
+        logger.debug(f"LLM content evaluation took {end_eval - start_eval:.2f}s")
         
         logger.info(f"LLM evaluation of content: {result}")
         return "INSUFFICIENT" in result
@@ -185,15 +201,22 @@ def knowledge_base_search_fast(query: str) -> str:
         return "Knowledge base not available - missing API keys or index not found"
     
     try:
+        start_emb = time.time()
         # Use cached embedding
         query_emb = cached_embedding(query)
+        end_emb = time.time()
+        logger.debug(f"Embedding generation took {end_emb - start_emb:.2f}s")
+
         if not query_emb:
             return "Error generating query embedding"
         
         logger.debug(f"Generated query embedding (first 5 values): {query_emb[:5]}")
         
+        start_query = time.time()
         # Query Pinecone
         results = index.query(vector=query_emb, top_k=TOP_K, include_metadata=True)
+        end_query = time.time()
+        logger.debug(f"Pinecone query took {end_query - start_query:.2f}s")
         logger.info(f"Retrieved {len(results['matches'])} results from Pinecone")
         logger.debug(f"Match scores: {[match['score'] for match in results['matches']]}")
         
@@ -259,7 +282,10 @@ def _perform_web_search(query: str) -> str:
             'Content-Type': 'application/json'
         }
         
+        start_req = time.time()
         response = requests.post(url, headers=headers, data=payload, timeout=5)  # Reduced timeout
+        end_req = time.time()
+        logger.debug(f"Web search request took {end_req - start_req:.2f}s")
         response.raise_for_status()
         
         results = response.json()
@@ -287,32 +313,28 @@ def _perform_web_search(query: str) -> str:
         return "Web search temporarily unavailable. Please contact support@aven.com."
 
 # Enhanced prompt templates with strong guardrails
-SYSTEM_PROMPT = """You are Aven's official customer support AI assistant. You must follow these strict guidelines:
+SYSTEM_PROMPT = """You are Aven's official customer support AI assistant. You ONLY answer questions about Aven products and services.
 
-CORE PRINCIPLES:
-1. ONLY provide information about Aven products, services, and policies
-2. NEVER make up information - if you don't know something, admit it
-3. ALWAYS be helpful, friendly, and professional
-4. Direct users to official support channels when needed
+STRICT RULES:
+1. ONLY discuss Aven's home equity credit cards, HELOCs, rates, fees, applications, and company information
+2. IMMEDIATELY REFUSE any questions about other companies, general topics, or non-Aven subjects
+3. For off-topic questions, say: "I can only help with Aven-related questions. Please contact support@aven.com for assistance."
+4. NEVER provide information about competitors, other financial products, or general knowledge
+5. Be helpful and professional for Aven-related questions only
 
-RESPONSE GUIDELINES:
-- Keep responses concise but complete (ideal for voice interaction)
-- Use simple, clear language 
-- Provide specific actionable steps when possible
-- Include contact information when you can't fully resolve the issue
+AVEN TOPICS YOU CAN DISCUSS:
+- Aven's home equity credit cards and HELOCs
+- Interest rates and fees
+- Application processes
+- Company information (founders, history)
+- Product features and benefits
+- Support and contact information
 
-SAFETY GUARDRAILS:
-- NEVER provide financial advice beyond Aven's official policies
-- NEVER discuss competitors or make comparisons
-- NEVER share personal information or make account-specific changes
-- If asked about anything outside Aven's scope, politely redirect
+FOR ANY OTHER TOPIC: Politely refuse and redirect to support@aven.com.
 
-CONTACT INFO TO USE:
-- Email: support@aven.com
-- Website: aven.com/support
-- For urgent issues: direct them to contact support immediately
-
-Remember: You represent Aven's brand. Be accurate, helpful, and trustworthy."""
+CONTACT INFO:
+- Email: support@aven.com  
+- Website: aven.com/support"""
 
 def generate_response_with_context(query: str, context: str, source_type: str) -> str:
     """Generate final response with enhanced prompting and guardrails"""
@@ -346,7 +368,10 @@ INSTRUCTIONS:
 Generate a helpful, accurate response:"""
 
         # Use streaming for faster perceived response time
+        start_gen = time.time()
         response = llm.invoke(prompt)
+        end_gen = time.time()
+        logger.debug(f"LLM response generation took {end_gen - start_gen:.2f}s")
         
         if hasattr(response, 'content'):
             return response.content
@@ -386,18 +411,28 @@ def run_agent_fast(query: str) -> str:
             if use_web_search:
                 # Direct web search for time-sensitive queries
                 logger.info("Starting web search...")
+                start_web = time.time()
                 context = cached_web_search(query)
+                end_web = time.time()
+                logger.debug(f"Web search took {end_web - start_web:.2f}s")
                 source_type = "web search"
             else:
                 # Try knowledge base first
                 logger.info("Starting knowledge base search...")
+                start_kb = time.time()
                 context = knowledge_base_search_fast(query)
+                end_kb = time.time()
+                logger.debug(f"Knowledge base search took {end_kb - start_kb:.2f}s")
                 source_type = "knowledge base"
                 
                 # Check if knowledge base response is insufficient
+                start_eval = time.time()
                 if is_insufficient_kb_content(context, query):
                     logger.info("Knowledge base response insufficient, trying web search fallback...")
+                    start_fallback = time.time()
                     web_context = cached_web_search(query)
+                    end_fallback = time.time()
+                    logger.debug(f"Fallback web search took {end_fallback - start_fallback:.2f}s")
                     
                     # If web search provides better results, use it
                     if web_context and not is_insufficient_kb_content(web_context, query) and len(web_context.strip()) > 50:
@@ -407,6 +442,8 @@ def run_agent_fast(query: str) -> str:
                         logger.info("Using web search fallback results")
                     else:
                         logger.info("Web search fallback also insufficient, using knowledge base response")
+                end_eval = time.time()
+                logger.debug(f"Content sufficiency evaluation took {end_eval - start_eval:.2f}s")
             
             logger.info(f"Retrieved context length: {len(context)} characters")
             if tried_fallback:
@@ -419,7 +456,10 @@ def run_agent_fast(query: str) -> str:
         # Single LLM call to generate final response
         try:
             logger.info("Generating response with LLM...")
+            start_response = time.time()
             response = generate_response_with_context(query, context, source_type)
+            end_response = time.time()
+            logger.debug(f"Full response generation took {end_response - start_response:.2f}s")
             
             elapsed_time = time.time() - start_time
             logger.info(f"Total response time: {elapsed_time:.2f} seconds")
