@@ -1,7 +1,9 @@
 # Backend (Python) specific
-backend/venv/
-backend/env/
-backend/ENV/
+aven-support-backend/venv/
+aven-support-backend/env/
+aven-support-backend/ENV/
+aven-support-backend/credentials.json
+aven-support-backend/token.json 
 
 # Python
 __pycache__/

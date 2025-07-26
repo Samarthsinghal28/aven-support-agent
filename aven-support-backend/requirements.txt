@@ -1,0 +1,35 @@
+# Core
+fastapi==0.116.1
+uvicorn[standard]==0.34.0
+pydantic==2.11.7
+python-dotenv==1.0.1
+requests==2.32.3
+aiofiles==24.1.0
+websockets==14.1
+asyncio==3.4.3
+gunicorn==23.0.0
+
+# AI & RAG
+openai==1.97.1
+pinecone-client==7.3.0
+langchain==0.3.27
+langchain-openai==0.2.14
+beautifulsoup4==4.13.4
+lxml==6.0.0
+lxml-html-clean==0.4.2
+readability-lxml==0.8.4.1
+playwright==1.54.0
+sentence-transformers==2.2.2
+
+# Voice
+vapi-server-sdk==1.7.0
+
+# External APIs
+google-api-python-client==2.177.0
+google-auth-httplib2==0.2.0
+google-auth-oauthlib==1.2.2
+
+# Testing
+pytest==8.4.1
+pytest-asyncio==1.1.0
+httpx==0.28.1

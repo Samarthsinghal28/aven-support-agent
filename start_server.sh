@@ -54,17 +54,17 @@ fi
 
 # Check backend environment
 echo -e "${BLUE}🔧 Checking backend environment...${NC}"
-if [ ! -f "backend/.env" ]; then
-    echo -e "${YELLOW}⚠️  backend/.env not found. Creating from template...${NC}"
-    cp backend/env.example backend/.env
-    echo -e "${RED}❌ Please configure your API keys in backend/.env and run again${NC}"
+if [ ! -f "aven-support-backend/.env" ]; then
+    echo -e "${YELLOW}⚠️  aven-support-backend/.env not found. Creating from template...${NC}"
+    cp aven-support-backend/env.example aven-support-backend/.env
+    echo -e "${RED}❌ Please configure your API keys in aven-support-backend/.env and run again${NC}"
     exit 1
 fi
 
 # Check if virtual environment exists
-if [ ! -d "backend/venv" ]; then
+if [ ! -d "aven-support-backend/venv" ]; then
     echo -e "${YELLOW}⚠️  Virtual environment not found. Creating...${NC}"
-    cd backend
+    cd aven-support-backend
     python3 -m venv venv
     source venv/bin/activate
     pip install -r requirements.txt
@@ -88,7 +88,7 @@ fi
 
 # Start backend server
 echo -e "${GREEN}🔌 Starting backend server (FastAPI + Vapi)...${NC}"
-cd backend
+cd aven-support-backend
 source venv/bin/activate
 
 # Check API keys
@@ -118,7 +118,7 @@ for key in optional:
         print(f'  ⚠️  {key} (optional)')
 
 if not all_good:
-    print('\\n❌ Missing required API keys. Please check backend/.env')
+    print('\\n❌ Missing required API keys. Please check aven-support-backend/.env')
     exit(1)
 
 print('\\n🎙️ Vapi Integration Status:')
@@ -135,7 +135,7 @@ fi
 
 # Start backend in background
 echo -e "${GREEN}▶️  Starting FastAPI server on http://localhost:8000${NC}"
-python server.py > ../backend.log 2>&1 &
+python server.py > ../aven-support-backend.log 2>&1 &
 BACKEND_PID=$!
 
 cd ..
@@ -150,7 +150,7 @@ for i in {1..30}; do
     sleep 1
     if [ $i -eq 30 ]; then
         echo -e "${RED}❌ Backend failed to start${NC}"
-        echo -e "${YELLOW}Check backend.log for details${NC}"
+        echo -e "${YELLOW}Check aven-support-backend.log for details${NC}"
         exit 1
     fi
 done
@@ -194,14 +194,14 @@ echo ""
 echo -e "${GREEN}✨ Features Available:${NC}"
 echo "  💬 Text Chat"
 echo "  🎙️ Voice Chat (WebSocket)"
-if grep -q "VAPI_API_KEY=" backend/.env && [ "$(grep VAPI_API_KEY= backend/.env | cut -d'=' -f2)" != "your_vapi_key_here" ]; then
+if grep -q "VAPI_API_KEY=" aven-support-backend/.env && [ "$(grep VAPI_API_KEY= aven-support-backend/.env | cut -d'=' -f2)" != "your_vapi_key_here" ]; then
     echo "  🎤 Vapi Voice Calls (Real STT/TTS)"
 else
     echo "  ⚠️  Vapi Voice Calls (disabled - add VAPI_API_KEY)"
 fi
 echo ""
 echo -e "${YELLOW}📝 Logs:${NC}"
-echo "  Backend:  tail -f backend.log"
+echo "  Backend:  tail -f aven-support-backend.log"
 echo "  Frontend: tail -f frontend.log"
 echo ""
 echo -e "${BLUE}Press Ctrl+C to stop all servers${NC}"
