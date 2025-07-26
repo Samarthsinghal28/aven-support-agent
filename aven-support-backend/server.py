@@ -27,6 +27,7 @@ vapi_service = VapiService()
 origins = [
     "http://localhost:3000",
     "https://aven-support-agent-eight.vercel.app",
+    "https://aven-support-agent-1.onrender.com",
 ]
 
 app.add_middleware(
@@ -178,18 +179,6 @@ async def handle_vapi_webhook(request: Request):
         logger.error(f"Error in Vapi webhook handler: {e}", exc_info=True)
         # Return a 200 OK to prevent Vapi from retrying on a failing webhook
         return {"status": "error", "message": str(e)}, 200
-
-
-# DEPRECATED - consolidated into /vapi/webhook
-# @app.post("/vapi-webhook")
-# async def handle_vapi_webhook_deprecated(request: Request):
-#     # ... implementation removed ...
-
-# DEPRECATED - consolidated into /vapi/webhook
-# @app.post("/vapi/function-call")
-# async def vapi_function_call_deprecated(request: Request):
-#     # ... implementation removed ...
-
 
 class VapiCallRequest(BaseModel):
     phone_number: Optional[str] = None  # Add phone number for phone calls
