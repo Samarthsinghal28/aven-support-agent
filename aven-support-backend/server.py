@@ -22,14 +22,22 @@ logger = logging.getLogger(__name__)
 app = FastAPI(title="Aven Support AI (MVP)")
 vapi_service = VapiService()
 
-# CORS Middleware
+# --- CORS Configuration ---
+# Define allowed origins
+origins = [
+    "http://localhost:3000",
+    "https://aven-support-agent-eight.vercel.app",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# --- Vapi Service Initialization ---
 
 # Session management
 active_sessions: Dict[str, Dict] = {}
