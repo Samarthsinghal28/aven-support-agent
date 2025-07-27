@@ -1,6 +1,5 @@
 import { Suspense } from "react"
 import SupportChat from "@/components/support-chat"
-import MeetingScheduler from "@/components/meeting-scheduler"
 import Header from "@/components/header"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
@@ -12,24 +11,20 @@ export default function Home() {
         <div className="text-center mb-12">
           <h1 className="text-4xl md:text-5xl font-serif font-medium tracking-tight mb-4">How can we help?</h1>
           <p className="text-gray-600 max-w-2xl mx-auto">
-            Connect with our support team through chat, voice, or schedule a meeting. We're here to assist you with any questions about your
+            Connect with our support team through chat or voice. We're here to assist you with any questions about your
             Aven card or home equity.
           </p>
         </div>
 
         <div className="max-w-3xl mx-auto">
           <Tabs defaultValue="chat" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-8">
+            <TabsList className="grid w-full grid-cols-1 mb-8">
               <TabsTrigger value="chat">Chat with AI Assistant</TabsTrigger>
-              <TabsTrigger value="meeting">Schedule a Meeting</TabsTrigger>
             </TabsList>
             <TabsContent value="chat">
               <Suspense fallback={<div className="h-[600px] w-full bg-gray-50 rounded-lg animate-pulse"></div>}>
                 <SupportChat />
               </Suspense>
-            </TabsContent>
-            <TabsContent value="meeting">
-              <MeetingScheduler />
             </TabsContent>
           </Tabs>
         </div>
