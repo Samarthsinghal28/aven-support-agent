@@ -159,16 +159,27 @@ done
 echo -e "${BLUE}🏥 Backend Health Check:${NC}"
 curl -s http://localhost:8000/health | python -m json.tool
 
-# Start frontend server
-echo -e "\n${GREEN}🎨 Starting frontend server (Next.js)...${NC}"
+# --- Frontend ---
+echo -e "${BLUE}--- Starting Frontend ---${NC}"
 cd frontend
-echo -e "${GREEN}▶️  Starting Next.js server on http://localhost:3000${NC}"
-npm run dev > ../frontend.log 2>&1 &
-FRONTEND_PID=$!
 
+# Build the Next.js application
+echo -e "${BLUE}Building frontend application...${NC}"
+npm run build > ../frontend.log 2>&1
+
+if [ $? -ne 0 ]; then
+    echo -e "${RED}❌ Frontend build failed. Check frontend.log for details.${NC}"
+    exit 1
+fi
+echo -e "${GREEN}✅ Frontend build successful.${NC}"
+
+# Start the Next.js application in the background
+echo -e "${BLUE}Starting frontend server...${NC}"
+npm run start >> ../frontend.log 2>&1 &
+FRONTEND_PID=$!
 cd ..
 
-# Wait for frontend to start
+# Wait for frontend to be ready
 echo -e "${BLUE}⏳ Waiting for frontend to start...${NC}"
 for i in {1..60}; do
     if curl -s http://localhost:3000 > /dev/null; then
@@ -177,8 +188,8 @@ for i in {1..60}; do
     fi
     sleep 1
     if [ $i -eq 60 ]; then
-        echo -e "${RED}❌ Frontend failed to start${NC}"
-        echo -e "${YELLOW}Check frontend.log for details${NC}"
+        echo -e "${RED}❌ Frontend failed to start. Check frontend.log for details.${NC}"
+        kill $BACKEND_PID
         exit 1
     fi
 done

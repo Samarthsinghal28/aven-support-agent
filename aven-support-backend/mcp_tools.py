@@ -14,9 +14,12 @@ from readability import Document as ReadabilityDocument
 from vapi import Vapi
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 from datetime import datetime, timedelta, date
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
+from google.auth.exceptions import RefreshError
+from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_type
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -63,8 +66,16 @@ class RAGTool:
 
         try:
             query_embedding = self.embeddings.embed_query(query)
-            results = self.index.query(
-                vector=query_embedding, top_k=3, include_metadata=True
+            
+            # Add a timeout to the Pinecone query
+            results = await asyncio.wait_for(
+                asyncio.to_thread(
+                    self.index.query,
+                    vector=query_embedding,
+                    top_k=3,
+                    include_metadata=True,
+                ),
+                timeout=10.0  # 10-second timeout
             )
             logger.debug(f"Pinecone query results: {results}")
             
@@ -95,6 +106,9 @@ class RAGTool:
             return {
                 "contexts": formatted_contexts
             }
+        except asyncio.TimeoutError:
+            logger.error("Pinecone query timed out.")
+            return {"error": "The knowledge base search took too long to respond. Please try again."}
         except Exception as e:
             logger.error(f"Error querying RAG tool: {e}", exc_info=True)
             return {"error": str(e)}
@@ -210,13 +224,20 @@ class CalendarTool:
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
                 try:
+                    logger.info("Refreshing Google Calendar token...")
                     creds.refresh(Request())
+                except RefreshError as e:
+                    logger.error(f"Token refresh failed: {e}. The refresh token is likely expired or revoked. Please re-authenticate.")
+                    logger.error("ACTION REQUIRED: Run 'python setup_google_calendar.py' to generate a new token.json.")
+                    return None
+                except Exception as e:
+                    logger.error(f"An unexpected error occurred during token refresh: {e}", exc_info=True)
+                    return None
+                else:
                     # Save the refreshed credentials
                     with open(self.token_path, 'w') as token:
                         token.write(creds.to_json())
-                except Exception as e:
-                    logger.error(f"Failed to refresh token: {e}. Run setup_google_calendar.py again.")
-                    return None
+                    logger.info("Token refreshed and saved successfully.")
             else:
                 logger.warning(f"'{self.token_path}' not found or invalid. Please run 'python setup_google_calendar.py' to authorize.")
                 return None
@@ -227,6 +248,12 @@ class CalendarTool:
             logger.error(f"Failed to build Google Calendar service: {e}", exc_info=True)
             return None
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_fixed(2),
+        retry=retry_if_exception_type(HttpError),
+        reraise=True  # Reraise the exception if all retries fail
+    )
     async def schedule(
         self, email: str, preferred_date: str, preferred_time: str
     ):

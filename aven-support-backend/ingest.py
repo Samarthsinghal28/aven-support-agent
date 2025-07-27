@@ -12,6 +12,8 @@ from langchain_openai import OpenAIEmbeddings
 from pinecone import Pinecone, ServerlessSpec
 from datetime import datetime
 import os
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError
 
 load_dotenv()
 
@@ -61,15 +63,27 @@ def fetch_sitemap_urls(url=SITEMAP_URL):
     print(f"Found {len(urls)} URLs in sitemap")
     return urls
 
-async def scrape_page(page, url):
-    """Scrape a single page using an existing Playwright page"""
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=retry_if_exception_type((PlaywrightTimeoutError,)),
+    reraise=True
+)
+async def scrape_page(page: Page, url: str) -> str:
+    """Scrape a single page using an existing Playwright page with retry logic."""
+    print(f"Attempting to scrape {url}...")
     try:
-        await page.goto(url, wait_until="networkidle", timeout=60000)
-        await page.wait_for_timeout(2000)
-        return await page.content()
+        await page.goto(url, wait_until="networkidle", timeout=30000)  # 30-second timeout
+        await page.wait_for_timeout(1000) # Wait for any lazy-loaded content
+        content = await page.content()
+        print(f"Successfully scraped {url}")
+        return content
+    except PlaywrightTimeoutError as e:
+        print(f"Timeout error scraping {url}: {e}. Retrying...")
+        raise
     except Exception as e:
-        print(f"Error scraping {url}: {e}")
-        return ""
+        print(f"An unexpected error occurred while scraping {url}: {e}")
+        return "" # Return empty on non-retryable errors
 
 def parse_aven_faqs(html_content):
     """Extract structured FAQ data from Aven support page"""
@@ -358,60 +372,59 @@ async def process_chunks_batch(chunks_batch):
     return len(vectors), len(chunks_batch) - len(vectors)
 
 async def worker(worker_id, queue):
-    """Worker that processes URLs from the queue"""
-    processed = 0
-    total_new_chunks = 0
-    total_skipped = 0
+    """Worker that processes URLs from the queue with improved error handling."""
+    processed_count = 0
+    new_chunks_count = 0
+    skipped_chunks_count = 0
     
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         page = await browser.new_page()
         
         try:
-            chunks_batch = []
+            chunks_to_process_batch = []
             
-            while True:
+            while not queue.empty():
                 try:
-                    # Get URL from queue with timeout to avoid hanging
                     url = await asyncio.wait_for(queue.get(), timeout=1.0)
                 except asyncio.TimeoutError:
-                    break
-                
+                    continue # Continue if queue is temporarily empty
+
                 try:
-                    print(f"Worker {worker_id}: Processing {url}")
-                    html = await scrape_page(page, url)
+                    # Core processing logic for a single URL
+                    html_content = await scrape_page(page, url)
                     
-                    if html:
-                        chunks = parse_and_chunk(html, url)
-                        chunks_batch.extend(chunks)
+                    if html_content:
+                        parsed_chunks = parse_and_chunk(html_content, url)
+                        chunks_to_process_batch.extend(parsed_chunks)
                         
-                        # Process batch when it reaches BATCH_SIZE
-                        if len(chunks_batch) >= BATCH_SIZE:
-                            new_count, skipped_count = await process_chunks_batch(chunks_batch)
-                            total_new_chunks += new_count
-                            total_skipped += skipped_count
-                            chunks_batch = []
+                        if len(chunks_to_process_batch) >= BATCH_SIZE:
+                            new, skipped = await process_chunks_batch(chunks_to_process_batch)
+                            new_chunks_count += new
+                            skipped_chunks_count += skipped
+                            chunks_to_process_batch = []
                     
-                    processed += 1
-                    if processed % 10 == 0:
-                        print(f"Worker {worker_id}: Processed {processed} pages")
+                    processed_count += 1
+                    if processed_count % 10 == 0:
+                        print(f"Worker {worker_id}: Processed {processed_count} pages...")
                     
                 except Exception as e:
-                    print(f"Worker {worker_id}: Error processing {url}: {e}")
+                    # This is the crucial change: log the error but do not crash the worker.
+                    print(f"Worker {worker_id}: FATAL error processing URL {url}: {e}. Skipping this URL.")
                 finally:
                     queue.task_done()
             
-            # Process remaining chunks in batch
-            if chunks_batch:
-                new_count, skipped_count = await process_chunks_batch(chunks_batch)
-                total_new_chunks += new_count
-                total_skipped += skipped_count
+            # Process any remaining chunks
+            if chunks_to_process_batch:
+                new, skipped = await process_chunks_batch(chunks_to_process_batch)
+                new_chunks_count += new
+                skipped_chunks_count += skipped
                 
         finally:
             await browser.close()
     
-    print(f"Worker {worker_id}: Completed {processed} pages, {total_new_chunks} new chunks, {total_skipped} skipped")
-    return total_new_chunks, total_skipped
+    print(f"Worker {worker_id}: Finished. Processed {processed_count} pages. Added {new_chunks_count} new chunks, skipped {skipped_chunks_count}.")
+    return new_chunks_count, skipped_chunks_count
 
 # ─── Main Entrypoint ──────────────────────────────────────────────────────────
 async def main():
