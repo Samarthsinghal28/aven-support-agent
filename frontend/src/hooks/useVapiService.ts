@@ -29,7 +29,7 @@ export const useVapiService = (): VapiServiceState => {
         setState(prev => ({ ...prev, isLoading: true, error: null }))
         console.log("Checking backend health...")
         const healthResponse = await fetch(`${API_BASE_URL}/health`, {
-          headers: { "ngrok-skip-browser-warning": "true" },
+          // headers: { "ngrok-skip-browser-warning": "true" },
         })
 
         if (!healthResponse.ok) {
@@ -49,7 +49,7 @@ export const useVapiService = (): VapiServiceState => {
         // Step 2: Create the Vapi assistant
         const assistantResponse = await fetch(`${API_BASE_URL}/vapi/assistant`, {
           method: "POST",
-          headers: { "ngrok-skip-browser-warning": "true" },
+          // headers: { "ngrok-skip-browser-warning": "true" },
         })
 
         if (!assistantResponse.ok) {

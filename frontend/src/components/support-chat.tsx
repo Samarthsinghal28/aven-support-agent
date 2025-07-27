@@ -83,7 +83,7 @@ export default function SupportChat() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "ngrok-skip-browser-warning": "true",
+          // "ngrok-skip-browser-warning": "true",
         },
         body: JSON.stringify({ message, session_id: sessionId }),
       })
