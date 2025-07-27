@@ -2,6 +2,10 @@
 
 This project implements an AI-powered customer support system for Aven, featuring a sophisticated backend that supports both text and voice interactions, tool-calling capabilities, and a scalable data ingestion pipeline.
 
+## 📊 Project Presentation
+
+**[View Project Presentation](https://docs.google.com/presentation/d/1TBUtS0c7-bJFf6Ao_GkWYZHK6kai9lotmdDtOjGnXf4/edit?usp=sharing)** - Comprehensive overview of the Aven Support Bot project including architecture, features, and technical implementation.
+
 ## Project Overview
 
 The goal is to provide Aven's customers with a seamless support experience through a web application where they can chat with an intelligent AI assistant. The assistant is equipped to answer questions about Aven's products, search the web for up-to-date information, and even schedule meetings with human agents.
